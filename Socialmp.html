@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Socialmp - Réseau Social</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #121212;
+      color: white;
+    }
+
+    .container {
+      max-width: 500px;
+      margin: auto;
+      padding: 20px;
+    }
+
+    .card {
+      background-color: #1e1e1e;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 0 10px #00000088;
+    }
+
+    h1, h2 {
+      text-align: center;
+      color: #2196f3;
+    }
+
+    input, textarea {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      margin-bottom: 15px;
+      border: 2px solid #4caf50;
+      border-radius: 10px;
+      background-color: #2c2c2c;
+      color: white;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px;
+      background-color: #2196f3;
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
+
+    .link {
+      color: #2196f3;
+      cursor: pointer;
+      text-align: center;
+      display: block;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .post {
+      background-color: #1e1e1e;
+      border: 1px solid #333;
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 10px;
+    }
+
+    .post .author {
+      font-weight: bold;
+      color: #4caf50;
+    }
+
+    .post .date {
+      font-size: 0.8em;
+      color: #999;
+    }
+
+    .post img {
+      max-width: 100%;
+      margin-top: 10px;
+      border-radius: 8px;
+    }
+
+    .comments {
+      margin-top: 10px;
+    }
+
+    .comment-input {
+      margin-top: 10px;
+    }
+
+    .like-btn {
+      background-color: #4caf50;
+      margin-top: 10px;
+    }
+
+    .navbar {
+      background-color: #1e1e1e;
+      padding: 10px;
+      display: flex;
+      justify-content: space-around;
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      border-top: 1px solid #333;
+    }
+
+    .navbar button {
+      width: auto;
+      padding: 5px 10px;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <div id="login" class="card">
+    <h1>Socialmp</h1>
+    <h2>Connexion</h2>
+    <input type="text" id="loginUser" placeholder="Pseudo">
+    <input type="password" id="loginPass" placeholder="Mot de passe">
+    <button onclick="login()">Se connecter</button>
+    <span class="link" onclick="toggleForm('register')">Pas de compte ? Inscrivez-vous</span>
+  </div>
+
+  <div id="register" class="card hidden">
+    <h2>Inscription</h2>
+    <input type="text" id="regUser" placeholder="Pseudo">
+    <input type="email" id="regMail" placeholder="Email">
+    <input type="password" id="regPass" placeholder="Mot de passe">
+    <button onclick="register()">S'inscrire</button>
+    <span class="link" onclick="toggleForm('login')">Déjà inscrit ? Connexion</span>
+  </div>
+
+  <div id="home" class="hidden">
+    <div class="card">
+      <h2>Bienvenue <span id="currentUser"></span></h2>
+      <textarea id="newPost" rows="3" placeholder="Exprimez-vous..."></textarea>
+      <input type="file" id="imageUpload" accept="image/*">
+      <button onclick="postMessage()">Publier</button>
+    </div>
+    <div id="feed"></div>
+  </div>
+</div>
+
+<div class="navbar hidden" id="nav">
+  <button onclick="logout()">Déconnexion</button>
+</div>
+
+<script>
+  const users = JSON.parse(localStorage.getItem('users') || '{}');
+  const posts = JSON.parse(localStorage.getItem('posts') || '[]');
+  let loggedInUser = null;
+
+  function saveUsers() {
+    localStorage.setItem('users', JSON.stringify(users));
+  }
+
+  function savePosts() {
+    localStorage.setItem('posts', JSON.stringify(posts));
+  }
+
+  function toggleForm(show) {
+    document.getElementById('login').classList.add('hidden');
+    document.getElementById('register').classList.add('hidden');
+    document.getElementById(show).classList.remove('hidden');
+  }
+
+  function register() {
+    const u = document.getElementById('regUser').value;
+    const p = document.getElementById('regPass').value;
+    const m = document.getElementById('regMail').value;
+
+    if (!u || !p || !m) return alert("Tous les champs sont obligatoires.");
+    if (users[u]) return alert("Ce pseudo existe déjà.");
+    users[u] = { password: p, email: m };
+    saveUsers();
+    alert("Inscription réussie !");
+    toggleForm('login');
+  }
+
+  function login() {
+    const u = document.getElementById('loginUser').value;
+    const p = document.getElementById('loginPass').value;
+    if (users[u] && users[u].password === p) {
+      loggedInUser = u;
+      document.getElementById('currentUser').textContent = u;
+      document.getElementById('login').classList.add('hidden');
+      document.getElementById('home').classList.remove('hidden');
+      document.getElementById('nav').classList.remove('hidden');
+      renderPosts();
+    } else {
+      alert("Identifiants incorrects.");
+    }
+  }
+
+  function logout() {
+    loggedInUser = null;
+    document.getElementById('home').classList.add('hidden');
+    document.getElementById('nav').classList.add('hidden');
+    document.getElementById('login').classList.remove('hidden');
+  }
+
+  function postMessage() {
+    const msg = document.getElementById('newPost').value;
+    const fileInput = document.getElementById('imageUpload');
+    const file = fileInput.files[0];
+    if (!msg && !file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = function () {
+      const post = {
+        user: loggedInUser,
+        content: msg,
+        time: new Date().toLocaleString(),
+        likes: 0,
+        comments: [],
+        image: file ? reader.result : null
+      };
+      posts.unshift(post);
+      savePosts();
+      document.getElementById('newPost').value = '';
+      fileInput.value = '';
+      renderPosts();
+    };
+
+    if (file) {
+      reader.readAsDataURL(file);
+    } else {
+      reader.onloadend();
+    }
+  }
+
+  function addComment(index, comment) {
+    if (!comment) return;
+    posts[index].comments.push({ user: loggedInUser, text: comment });
+    savePosts();
+    renderPosts();
+  }
+
+  function likePost(index) {
+    posts[index].likes++;
+    savePosts();
+    renderPosts();
+  }
+
+  function renderPosts() {
+    const feed = document.getElementById('feed');
+    feed.innerHTML = '';
+    posts.forEach((post, index) => {
+      const div = document.createElement('div');
+      div.className = 'post';
+      div.innerHTML = `
+        <div class="author">${post.user}</div>
+        <div class="date">${post.time}</div>
+        <div class="content">${post.content}</div>
+        ${post.image ? `<img src="${post.image}" alt="Image"><br><a href="${post.image}" download="image.jpg">📥 Télécharger</a>` : ''}
+        <button class="like-btn" onclick="likePost(${index})">❤️ Like (${post.likes})</button>
+        <div class="comments">
+          <strong>Commentaires:</strong>
+          ${post.comments.map(c => `<div><span style="color:#4caf50;">${c.user}:</span> ${c.text}</div>`).join('')}
+          <div class="comment-input">
+            <input type="text" id="comment-${index}" placeholder="Écrire un commentaire...">
+            <button onclick="addComment(${index}, document.getElementById('comment-${index}').value)">Envoyer</button>
+          </div>
+        </div>
+      `;
+      feed.appendChild(div);
+    });
+  }
+</script>
+
+</body>
+</html>
